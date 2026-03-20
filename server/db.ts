@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, scrapingJobs, commercialProperties, propertyManagers, ScrapingJob, CommercialProperty, PropertyManager, InsertScrapingJob, InsertCommercialProperty, InsertPropertyManager } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -89,4 +89,94 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Scraping job queries
+
+export async function createScrapingJob(input: InsertScrapingJob): Promise<ScrapingJob> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(scrapingJobs).values(input);
+  const jobId = (result as any).insertId || result[0];
+  
+  const job = await db.select().from(scrapingJobs).where(eq(scrapingJobs.id, jobId)).limit(1);
+  if (!job[0]) throw new Error("Failed to create scraping job");
+  
+  return job[0];
+}
+
+export async function getScrapingJob(jobId: number): Promise<ScrapingJob | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(scrapingJobs).where(eq(scrapingJobs.id, jobId)).limit(1);
+  return result[0];
+}
+
+export async function updateScrapingJob(jobId: number, updates: Partial<ScrapingJob>): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(scrapingJobs).set(updates).where(eq(scrapingJobs.id, jobId));
+}
+
+export async function getUserScrapingJobs(userId: number): Promise<ScrapingJob[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(scrapingJobs).where(eq(scrapingJobs.userId, userId)).orderBy(desc(scrapingJobs.createdAt));
+}
+
+// Commercial property queries
+
+export async function createCommercialProperty(input: InsertCommercialProperty): Promise<CommercialProperty> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(commercialProperties).values(input);
+  const propId = (result as any).insertId || result[0];
+  
+  const prop = await db.select().from(commercialProperties).where(eq(commercialProperties.id, propId)).limit(1);
+  if (!prop[0]) throw new Error("Failed to create property");
+  
+  return prop[0];
+}
+
+export async function getPropertiesByScrapingJob(jobId: number): Promise<CommercialProperty[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(commercialProperties).where(eq(commercialProperties.scrapingJobId, jobId));
+}
+
+// Property manager queries
+
+export async function createPropertyManager(input: InsertPropertyManager): Promise<PropertyManager> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(propertyManagers).values(input);
+  const managerId = (result as any).insertId || result[0];
+  
+  const manager = await db.select().from(propertyManagers).where(eq(propertyManagers.id, managerId)).limit(1);
+  if (!manager[0]) throw new Error("Failed to create property manager");
+  
+  return manager[0];
+}
+
+export async function getManagersByProperty(propertyId: number): Promise<PropertyManager[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(propertyManagers).where(eq(propertyManagers.propertyId, propertyId));
+}
+
+export async function getPropertyWithManagers(propertyId: number): Promise<{ property: CommercialProperty; managers: PropertyManager[] } | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  const prop = await db.select().from(commercialProperties).where(eq(commercialProperties.id, propertyId)).limit(1);
+  if (!prop[0]) return null;
+
+  const managers = await getManagersByProperty(propertyId);
+  return { property: prop[0], managers };
+}
