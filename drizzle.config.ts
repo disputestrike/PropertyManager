@@ -1,4 +1,8 @@
+import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
+
+// Prefer repo `.env` over inherited shell/system DATABASE_URL (avoids ETIMEDOUT to wrong host).
+config({ override: true });
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {

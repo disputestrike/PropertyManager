@@ -31,7 +31,8 @@ export type InsertUser = typeof users.$inferInsert;
 export const scrapingJobs = mysqlTable('scraping_jobs', {
   id: int('id').autoincrement().primaryKey(),
   userId: int('userId').notNull().references(() => users.id),
-  zipCode: varchar('zipCode', { length: 10 }).notNull(),
+  // Keep legacy column name, but now stores either ZIP or city query text.
+  zipCode: varchar('zipCode', { length: 120 }).notNull(),
   status: mysqlEnum('status', ['pending', 'running', 'completed', 'failed']).default('pending').notNull(),
   totalProperties: int('totalProperties').default(0),
   totalManagers: int('totalManagers').default(0),
@@ -56,6 +57,8 @@ export const commercialProperties = mysqlTable('commercial_properties', {
   state: varchar('state', { length: 2 }),
   zipCode: varchar('zipCode', { length: 10 }),
   propertyType: varchar('propertyType', { length: 100 }),
+  buildingSizeSqft: int('buildingSizeSqft'),
+  buildingLevels: int('buildingLevels'),
   source: varchar('source', { length: 50 }).notNull(), // 'google_maps', 'county_assessor', etc.
   sourceUrl: text('sourceUrl'),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
@@ -72,10 +75,11 @@ export const propertyManagers = mysqlTable('property_managers', {
   propertyId: int('propertyId').notNull().references(() => commercialProperties.id),
   name: varchar('name', { length: 255 }),
   email: varchar('email', { length: 320 }),
-  phone: varchar('phone', { length: 20 }),
+  phone: varchar('phone', { length: 128 }),
   company: varchar('company', { length: 255 }),
   title: varchar('title', { length: 100 }),
   website: varchar('website', { length: 255 }),
+  linkedinUrl: varchar('linkedinUrl', { length: 512 }),
   source: varchar('source', { length: 50 }).notNull(), // 'google_maps', 'website_scrape', etc.
   verified: boolean('verified').default(false).notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
